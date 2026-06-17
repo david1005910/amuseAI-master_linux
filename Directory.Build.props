@@ -1,0 +1,13 @@
+<Project>
+  <PropertyGroup>
+    <Version>3.5.3</Version>
+    <PackageVersion>0.8.12</PackageVersion>
+    <Company>TensorStack</Company>
+    <Copyright>TensorStack - 2026</Copyright>
+    <RepositoryUrl>https://github.com/TensorStack-AI/AmuseAI</RepositoryUrl>
+    <Authors>sa_ddam213</Authors>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <Configurations>Debug;Release;Release-Installer;</Configurations>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,309 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Amuse.UI.Linux.ViewModels"
+             xmlns:ia="using:Projektanker.Icons.Avalonia"
+             x:Class="Amuse.UI.Linux.Views.TextToAudioView"
+             x:DataType="vm:TextToAudioViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="TextBlock.Label">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="#888888"/>
+            <Setter Property="Margin" Value="0,10,0,3"/>
+        </Style>
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="#1E1E1E"/>
+            <Setter Property="BorderBrush" Value="#333333"/>
+            <Setter Property="Foreground" Value="#DDDDDD"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+        <Style Selector="Slider">
+            <Setter Property="Foreground" Value="#4FC3F7"/>
+        </Style>
+        <Style Selector="ComboBox">
+            <Setter Property="Background" Value="#1E1E1E"/>
+            <Setter Property="BorderBrush" Value="#333333"/>
+            <Setter Property="Foreground" Value="#DDDDDD"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        </Style>
+        <Style Selector="Button.Primary">
+            <Setter Property="Background" Value="#1565C0"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Height" Value="40"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="14"/>
+        </Style>
+        <Style Selector="Button.Primary:pointerover">
+            <Setter Property="Background" Value="#1976D2"/>
+        </Style>
+        <Style Selector="Button.Primary:disabled">
+            <Setter Property="Background" Value="#2A2A2A"/>
+            <Setter Property="Foreground" Value="#555555"/>
+        </Style>
+        <Style Selector="Button.Secondary">
+            <Setter Property="Background" Value="#252525"/>
+            <Setter Property="Foreground" Value="#AAAAAA"/>
+            <Setter Property="BorderBrush" Value="#333333"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+        <Style Selector="Button.Secondary:pointerover">
+            <Setter Property="Background" Value="#2E2E2E"/>
+            <Setter Property="Foreground" Value="#EEEEEE"/>
+        </Style>
+        <Style Selector="Button.Danger">
+            <Setter Property="Background" Value="#7f1111"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Height" Value="40"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="FontSize" Value="14"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Grid ColumnDefinitions="320,*">
+
+        <!-- ===== LEFT PANEL: Settings ===== -->
+        <Border Grid.Column="0"
+                Background="#141414"
+                BorderBrush="#2A2A2A"
+                BorderThickness="0,0,1,0">
+            <DockPanel>
+
+                <!-- Generate / Cancel button -->
+                <Grid DockPanel.Dock="Bottom" Margin="12,8">
+                    <Button Classes="Primary"
+                            Content="Generate Audio"
+                            Command="{Binding GenerateCommand}"
+                            HorizontalAlignment="Stretch"
+                            IsVisible="{Binding !IsGenerating}"/>
+                    <Button Classes="Danger"
+                            Command="{Binding CancelCommand}"
+                            HorizontalAlignment="Stretch"
+                            IsVisible="{Binding IsGenerating}">
+                        <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                            <ia:Icon Value="fa-stop" FontSize="13"/>
+                            <TextBlock Text="Cancel" Foreground="White"/>
+                        </StackPanel>
+                    </Button>
+                </Grid>
+
+                <!-- Deps banner -->
+                <Border DockPanel.Dock="Top" Background="#1A2A1A" BorderBrush="#2E4D2E"
+                        BorderThickness="0,0,0,1" Padding="12,8" IsVisible="{Binding HasDeps}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <ia:Icon Value="fa-circle-check" FontSize="13" Foreground="#4CAF50"/>
+                        <TextBlock Text="{Binding DepsStatus}" FontSize="12" Foreground="#88BB88"/>
+                    </StackPanel>
+                </Border>
+                <Border DockPanel.Dock="Top" Background="#2A1A1A" BorderBrush="#4D2E2E"
+                        BorderThickness="0,0,0,1" Padding="12,10" IsVisible="{Binding !HasDeps}">
+                    <StackPanel Spacing="6">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <ia:Icon Value="fa-triangle-exclamation" FontSize="13" Foreground="#FFA726"/>
+                            <TextBlock Text="{Binding DepsStatus}" FontSize="12" Foreground="#FFAA66" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <Button Classes="Secondary" Content="Install Dependencies"
+                                Command="{Binding InstallDepsCommand}"
+                                IsEnabled="{Binding !IsInstalling}"
+                                HorizontalAlignment="Left"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Settings -->
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="12,8,12,12" Spacing="0">
+
+                        <!-- Model -->
+                        <TextBlock Text="MODEL" Classes="Label"/>
+                        <ComboBox ItemsSource="{Binding ModelPresets}"
+                                  SelectedValueBinding="{Binding ModelId}"
+                                  SelectedValue="{Binding SelectedModel}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="vm:AudioModelPreset">
+                                    <TextBlock Text="{Binding Label}" FontSize="12"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <TextBox Text="{Binding SelectedModel}"
+                                 Watermark="HuggingFace model ID"
+                                 Margin="0,4,0,0"/>
+
+                        <!-- Prompt -->
+                        <Grid Margin="0,10,0,3">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="PROMPT"
+                                       FontSize="11" Foreground="#888888"
+                                       VerticalAlignment="Center"/>
+                            <Button Grid.Column="1" Click="OnPastePromptClick"
+                                    Background="Transparent" BorderThickness="0"
+                                    Padding="4,0" ToolTip.Tip="Paste prompt from clipboard">
+                                <ia:Icon Value="fa-paste" FontSize="11" Foreground="#555555"/>
+                            </Button>
+                        </Grid>
+                        <TextBox Text="{Binding Prompt}"
+                                 AcceptsReturn="True"
+                                 TextWrapping="Wrap"
+                                 Height="100"
+                                 Watermark="Describe the music or sound you want…&#x0a;e.g. 80s synth pop with driving bass, upbeat jazz piano solo"/>
+
+                        <!-- Duration -->
+                        <Grid Margin="0,10,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="DURATION" Classes="Label" Margin="0"/>
+                            <TextBlock Grid.Column="1"
+                                       Text="{Binding Duration, StringFormat={}{0:F0}s}"
+                                       FontSize="13" Foreground="#4FC3F7" VerticalAlignment="Center"/>
+                        </Grid>
+                        <Slider Value="{Binding Duration}" Minimum="5" Maximum="30"
+                                TickFrequency="5" IsSnapToTickEnabled="True"/>
+
+                        <!-- Install log -->
+                        <Border Margin="0,12,0,0" IsVisible="{Binding IsInstalling}"
+                                Background="#111" CornerRadius="4" Padding="8">
+                            <ScrollViewer Height="120" VerticalScrollBarVisibility="Auto">
+                                <TextBlock Text="{Binding InstallLog}" FontFamily="Monospace"
+                                           FontSize="11" Foreground="#88BB88" TextWrapping="Wrap"/>
+                            </ScrollViewer>
+                        </Border>
+
+                    </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+
+        <!-- ===== RIGHT PANEL: Output ===== -->
+        <Grid Grid.Column="1" Background="#1A1A1A">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Status bar -->
+            <Border Grid.Row="0" Background="#111111" BorderBrush="#2A2A2A"
+                    BorderThickness="0,0,0,1" Padding="16,8">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                        <ProgressBar Value="{Binding ProgressValue}" Maximum="{Binding ProgressMax}"
+                                     Width="200" Height="4" Foreground="#4FC3F7" Background="#2A2A2A"
+                                     IsVisible="{Binding IsGenerating}"/>
+                        <TextBlock Text="{Binding StatusText}" FontSize="12" Foreground="#888888" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding TimeElapsed}" FontSize="12" Foreground="#555555" VerticalAlignment="Center"
+                                   IsVisible="{Binding TimeElapsed, Converter={x:Static vm:StringNotEmptyConverter.Instance}}"/>
+                    </StackPanel>
+                    <!-- Action buttons -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
+                                IsVisible="{Binding LastOutputPath, Converter={x:Static vm:NotNullConverter.Instance}}">
+                        <Button Classes="Secondary" Command="{Binding PlayAudioCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="5">
+                                <ia:Icon Value="fa-play" FontSize="12"/>
+                                <TextBlock Text="Play"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Classes="Secondary" Command="{Binding SaveAudioCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="5">
+                                <ia:Icon Value="fa-floppy-disk" FontSize="12"/>
+                                <TextBlock Text="Save"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Output area -->
+            <Grid Grid.Row="1">
+
+                <!-- Placeholder -->
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12"
+                            IsVisible="{Binding LastOutputPath, Converter={x:Static vm:NullConverter.Instance}}">
+                    <ia:Icon Value="fa-music" FontSize="64" Foreground="#2A2A2A"/>
+                    <TextBlock Text="Generated audio will appear here"
+                               FontSize="14" Foreground="#444444" HorizontalAlignment="Center"/>
+                    <TextBlock Text="Enter a prompt and click Generate Audio"
+                               FontSize="12" Foreground="#333333" HorizontalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- Audio ready card -->
+                <Border IsVisible="{Binding LastOutputPath, Converter={x:Static vm:NotNullConverter.Instance}}"
+                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                        Background="#1E1E1E" CornerRadius="12" Padding="40,32" MinWidth="360">
+                    <StackPanel Spacing="20" HorizontalAlignment="Center">
+                        <ia:Icon Value="fa-music" FontSize="56" Foreground="#4FC3F7"
+                                 HorizontalAlignment="Center"/>
+                        <TextBlock Text="Audio Generated"
+                                   FontSize="20" FontWeight="SemiBold" Foreground="#DDDDDD"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Text="{Binding AudioInfo}"
+                                   FontSize="13" Foreground="#888888"
+                                   HorizontalAlignment="Center"
+                                   IsVisible="{Binding AudioInfo, Converter={x:Static vm:NotNullConverter.Instance}}"/>
+                        <!-- Waveform decoration -->
+                        <Border Background="#111111" CornerRadius="6" Padding="16,12">
+                            <StackPanel Orientation="Horizontal" Spacing="3" HorizontalAlignment="Center">
+                                <Rectangle Width="3" Height="8"  Fill="#4FC3F7" RadiusX="1" RadiusY="1"/>
+                                <Rectangle Width="3" Height="20" Fill="#4FC3F7" RadiusX="1" RadiusY="1"/>
+                                <Rectangle Width="3" Height="14" Fill="#4FC3F7" RadiusX="1" RadiusY="1"/>
+                                <Rectangle Width="3" Height="28" Fill="#4FC3F7" RadiusX="1" RadiusY="1"/>
+                                <Rectangle Width="3" Height="10" Fill="#4FC3F7" RadiusX="1" RadiusY="1"/>
+                                <Rectangle Width="3" Height="22" Fill="#4FC3F7" RadiusX="1" RadiusY="1"/>
+                                <Rectangle Width="3" Height="16" Fill="#4FC3F7" RadiusX="1" RadiusY="1"/>
+                                <Rectangle Width="3" Height="30" Fill="#4FC3F7" RadiusX="1" RadiusY="1"/>
+                                <Rectangle Width="3" Height="12" Fill="#4FC3F7" RadiusX="1" RadiusY="1"/>
+                                <Rectangle Width="3" Height="24" Fill="#4FC3F7" RadiusX="1" RadiusY="1"/>
+                                <Rectangle Width="3" Height="18" Fill="#4FC3F7" RadiusX="1" RadiusY="1"/>
+                                <Rectangle Width="3" Height="28" Fill="#4FC3F7" RadiusX="1" RadiusY="1"/>
+                                <Rectangle Width="3" Height="8"  Fill="#4FC3F7" RadiusX="1" RadiusY="1"/>
+                            </StackPanel>
+                        </Border>
+                        <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+                            <Button Classes="Primary" Command="{Binding PlayAudioCommand}"
+                                    Width="120">
+                                <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                                    <ia:Icon Value="fa-play" FontSize="13"/>
+                                    <TextBlock Text="Play"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Classes="Secondary" Command="{Binding SaveAudioCommand}">
+                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                    <ia:Icon Value="fa-floppy-disk" FontSize="12"/>
+                                    <TextBlock Text="Save WAV"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Generating overlay -->
+                <Border IsVisible="{Binding IsGenerating}" Background="#88000000">
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="16">
+                        <ia:Icon Value="fa-spinner" FontSize="40" Foreground="#4FC3F7"/>
+                        <TextBlock Text="{Binding StatusText}" FontSize="14" Foreground="#CCCCCC" HorizontalAlignment="Center"/>
+                        <ProgressBar Value="{Binding ProgressValue}" Maximum="{Binding ProgressMax}"
+                                     Width="300" Height="6" Foreground="#4FC3F7" Background="#2A2A2A"/>
+                        <TextBlock Text="{Binding TimeElapsed}" FontSize="12" Foreground="#666666" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+
+            </Grid>
+        </Grid>
+
+    </Grid>
+</UserControl>

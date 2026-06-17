@@ -1,0 +1,398 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Amuse.UI.Linux.ViewModels"
+        xmlns:views="using:Amuse.UI.Linux.Views"
+        xmlns:ia="using:Projektanker.Icons.Avalonia"
+        x:Class="Amuse.UI.Linux.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="Amuse"
+        Width="1600" Height="900"
+        MinWidth="1200" MinHeight="700"
+        Background="#1A1A1A">
+
+    <Window.Styles>
+        <StyleInclude Source="avares://Amuse/Styles/AmuseTheme.axaml"/>
+    </Window.Styles>
+
+    <DockPanel>
+
+        <!-- Title Bar -->
+        <Grid DockPanel.Dock="Top" Height="36" Background="#111111">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Drag area behind everything -->
+            <Border Grid.Column="0" Grid.ColumnSpan="3"
+                    Background="Transparent"
+                    PointerPressed="OnTitleBarDrag"/>
+
+            <!-- Logo -->
+            <StackPanel Grid.Column="0" Orientation="Horizontal"
+                        VerticalAlignment="Center" Margin="12,0,0,0"
+                        IsHitTestVisible="False">
+                <TextBlock Text="AMUSE" FontSize="15" FontWeight="Bold"
+                           Foreground="#E0E0E0" VerticalAlignment="Center"/>
+                <TextBlock Text="{Binding AppVersion}" FontSize="10"
+                           Foreground="#888888" VerticalAlignment="Bottom"
+                           Margin="6,0,0,2"/>
+            </StackPanel>
+
+            <!-- Category Navigation -->
+            <StackPanel Grid.Column="1" Orientation="Horizontal"
+                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                        Spacing="2" IsHitTestVisible="True">
+
+                <Button Classes="NavButton"
+                        Command="{Binding NavigateCategoryCommand}"
+                        CommandParameter="{x:Static views:ViewCategory.Image}"
+                        Tag="{Binding ViewCategory}">
+                    <StackPanel Orientation="Horizontal" Spacing="5">
+                        <ia:Icon Value="fa-image" FontSize="13"/>
+                        <TextBlock Text="Image"/>
+                    </StackPanel>
+                </Button>
+
+                <Button Classes="NavButton"
+                        Command="{Binding NavigateCategoryCommand}"
+                        CommandParameter="{x:Static views:ViewCategory.Video}"
+                        Tag="{Binding ViewCategory}">
+                    <StackPanel Orientation="Horizontal" Spacing="5">
+                        <ia:Icon Value="fa-film" FontSize="13"/>
+                        <TextBlock Text="Video"/>
+                    </StackPanel>
+                </Button>
+
+                <Button Classes="NavButton"
+                        Command="{Binding NavigateCategoryCommand}"
+                        CommandParameter="{x:Static views:ViewCategory.Audio}"
+                        Tag="{Binding ViewCategory}">
+                    <StackPanel Orientation="Horizontal" Spacing="5">
+                        <ia:Icon Value="fa-music" FontSize="13"/>
+                        <TextBlock Text="Audio"/>
+                    </StackPanel>
+                </Button>
+
+                <Button Classes="NavButton"
+                        Command="{Binding NavigateCommand}"
+                        CommandParameter="{x:Static views:View.Gallery}"
+                        Tag="{Binding ViewCategory}">
+                    <StackPanel Orientation="Horizontal" Spacing="5">
+                        <ia:Icon Value="fa-images" FontSize="13"/>
+                        <TextBlock Text="Gallery"/>
+                    </StackPanel>
+                </Button>
+
+            </StackPanel>
+
+            <!-- Right: Settings + Window Controls -->
+            <StackPanel Grid.Column="2" Orientation="Horizontal"
+                        VerticalAlignment="Center" IsHitTestVisible="True">
+
+                <Button Classes="NavButton"
+                        Command="{Binding NavigateCategoryCommand}"
+                        CommandParameter="{x:Static views:ViewCategory.Settings}"
+                        Tag="{Binding ViewCategory}"
+                        Margin="0,0,8,0">
+                    <StackPanel Orientation="Horizontal" Spacing="5">
+                        <ia:Icon Value="fa-gear" FontSize="13"/>
+                        <TextBlock Text="Settings"/>
+                    </StackPanel>
+                </Button>
+
+                <Button Classes="WinButton" Click="OnMinimize">
+                    <ia:Icon Value="fa-window-minimize" FontSize="10"/>
+                </Button>
+                <Button Classes="WinButton" Click="OnMaximize">
+                    <ia:Icon Value="fa-window-maximize" FontSize="10"/>
+                </Button>
+                <Button Classes="WinButton CloseButton" Click="OnClose">
+                    <ia:Icon Value="fa-xmark" FontSize="12"/>
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <!-- Main Body -->
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="190"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Side Navigation -->
+            <Border Grid.Column="0" Background="#141414"
+                    BorderBrush="#2A2A2A" BorderThickness="0,0,1,0">
+                <DockPanel>
+                    <!-- System Info at bottom -->
+                    <Border DockPanel.Dock="Bottom" Padding="12,8"
+                            BorderBrush="#2A2A2A" BorderThickness="0,1,0,0">
+                        <TextBlock x:Name="SystemInfoText"
+                                   FontSize="11" Foreground="#555555"/>
+                    </Border>
+
+                    <!-- Sub navigation -->
+                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel Margin="0,8,0,0">
+
+                            <!-- Image submenu -->
+                            <StackPanel x:Name="ImageMenu">
+                                <TextBlock Text="GENERATE" Classes="SubMenuHeader"/>
+                                <Button Classes="SubNavButton" x:Name="BtnTextToImage"
+                                        Command="{Binding NavigateCommand}"
+                                        CommandParameter="{x:Static views:View.TextToImage}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <ia:Icon Value="fa-pen-to-square" FontSize="13"/>
+                                        <TextBlock Text="Text to Image"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Classes="SubNavButton" x:Name="BtnImageToImage"
+                                        Command="{Binding NavigateCommand}"
+                                        CommandParameter="{x:Static views:View.ImageToImage}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <ia:Icon Value="fa-arrows-rotate" FontSize="13"/>
+                                        <TextBlock Text="Image to Image"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Classes="SubNavButton" x:Name="BtnImageEdit"
+                                        Command="{Binding NavigateCommand}"
+                                        CommandParameter="{x:Static views:View.ImageEdit}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <ia:Icon Value="fa-wand-magic-sparkles" FontSize="13"/>
+                                        <TextBlock Text="Image Edit"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Classes="SubNavButton" x:Name="BtnImageInpaint"
+                                        Command="{Binding NavigateCommand}"
+                                        CommandParameter="{x:Static views:View.ImageInpaint}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <ia:Icon Value="fa-fill" FontSize="13"/>
+                                        <TextBlock Text="Inpaint"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Classes="SubNavButton" x:Name="BtnPaintToImage"
+                                        Command="{Binding NavigateCommand}"
+                                        CommandParameter="{x:Static views:View.PaintToImage}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <ia:Icon Value="fa-paintbrush" FontSize="13"/>
+                                        <TextBlock Text="Paint to Image"/>
+                                    </StackPanel>
+                                </Button>
+                                <TextBlock Text="TOOLS" Classes="SubMenuHeader"/>
+                                <Button Classes="SubNavButton" x:Name="BtnImageUpscale"
+                                        Command="{Binding NavigateCommand}"
+                                        CommandParameter="{x:Static views:View.ImageUpscale}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <ia:Icon Value="fa-expand" FontSize="13"/>
+                                        <TextBlock Text="Upscale"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Classes="SubNavButton" x:Name="BtnImageExtract"
+                                        Command="{Binding NavigateCommand}"
+                                        CommandParameter="{x:Static views:View.ImageExtract}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <ia:Icon Value="fa-scissors" FontSize="13"/>
+                                        <TextBlock Text="Extract"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Classes="SubNavButton" x:Name="BtnImageCompose"
+                                        Command="{Binding NavigateCommand}"
+                                        CommandParameter="{x:Static views:View.ImageCompose}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <ia:Icon Value="fa-layer-group" FontSize="13"/>
+                                        <TextBlock Text="Compose"/>
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+
+                            <!-- Video submenu -->
+                            <StackPanel x:Name="VideoMenu">
+                                <TextBlock Text="GENERATE" Classes="SubMenuHeader"/>
+                                <Button Classes="SubNavButton" x:Name="BtnTextToVideo"
+                                        Command="{Binding NavigateCommand}"
+                                        CommandParameter="{x:Static views:View.TextToVideo}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <ia:Icon Value="fa-video" FontSize="13"/>
+                                        <TextBlock Text="Text to Video"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Classes="SubNavButton" x:Name="BtnImageToVideo"
+                                        Command="{Binding NavigateCommand}"
+                                        CommandParameter="{x:Static views:View.ImageToVideo}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <ia:Icon Value="fa-photo-film" FontSize="13"/>
+                                        <TextBlock Text="Image to Video"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Classes="SubNavButton" x:Name="BtnVideoToVideo"
+                                        Command="{Binding NavigateCommand}"
+                                        CommandParameter="{x:Static views:View.VideoToVideo}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <ia:Icon Value="fa-arrows-rotate" FontSize="13"/>
+                                        <TextBlock Text="Video to Video"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Classes="SubNavButton" x:Name="BtnFrameToFrame"
+                                        Command="{Binding NavigateCommand}"
+                                        CommandParameter="{x:Static views:View.FrameToFrame}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <ia:Icon Value="fa-film" FontSize="13"/>
+                                        <TextBlock Text="Frame to Frame"/>
+                                    </StackPanel>
+                                </Button>
+                                <TextBlock Text="TOOLS" Classes="SubMenuHeader"/>
+                                <Button Classes="SubNavButton" x:Name="BtnVideoUpscale"
+                                        Command="{Binding NavigateCommand}"
+                                        CommandParameter="{x:Static views:View.VideoUpscale}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <ia:Icon Value="fa-expand" FontSize="13"/>
+                                        <TextBlock Text="Upscale"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Classes="SubNavButton" x:Name="BtnVideoExtract"
+                                        Command="{Binding NavigateCommand}"
+                                        CommandParameter="{x:Static views:View.VideoExtract}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <ia:Icon Value="fa-scissors" FontSize="13"/>
+                                        <TextBlock Text="Extract"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Classes="SubNavButton" x:Name="BtnVideoInterpolate"
+                                        Command="{Binding NavigateCommand}"
+                                        CommandParameter="{x:Static views:View.VideoInterpolate}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <ia:Icon Value="fa-forward" FontSize="13"/>
+                                        <TextBlock Text="Interpolate"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Classes="SubNavButton" x:Name="BtnVideoCompose"
+                                        Command="{Binding NavigateCommand}"
+                                        CommandParameter="{x:Static views:View.VideoCompose}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <ia:Icon Value="fa-layer-group" FontSize="13"/>
+                                        <TextBlock Text="Compose"/>
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+
+                            <!-- Audio submenu -->
+                            <StackPanel x:Name="AudioMenu">
+                                <TextBlock Text="GENERATE" Classes="SubMenuHeader"/>
+                                <Button Classes="SubNavButton" x:Name="BtnTextToMusic"
+                                        Command="{Binding NavigateCommand}"
+                                        CommandParameter="{x:Static views:View.TextToMusic}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <ia:Icon Value="fa-music" FontSize="13"/>
+                                        <TextBlock Text="Text to Music"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Classes="SubNavButton" x:Name="BtnTextToAudio"
+                                        Command="{Binding NavigateCommand}"
+                                        CommandParameter="{x:Static views:View.TextToAudio}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <ia:Icon Value="fa-volume-high" FontSize="13"/>
+                                        <TextBlock Text="Text to Audio"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Classes="SubNavButton" x:Name="BtnAudioToText"
+                                        Command="{Binding NavigateCommand}"
+                                        CommandParameter="{x:Static views:View.AudioToText}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <ia:Icon Value="fa-microphone" FontSize="13"/>
+                                        <TextBlock Text="Audio to Text"/>
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+
+                            <!-- Settings submenu -->
+                            <StackPanel x:Name="SettingsMenu">
+                                <TextBlock Text="SETTINGS" Classes="SubMenuHeader"/>
+                                <Button Classes="SubNavButton" x:Name="BtnGeneral"
+                                        Command="{Binding NavigateCommand}"
+                                        CommandParameter="{x:Static views:View.General}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <ia:Icon Value="fa-sliders" FontSize="13"/>
+                                        <TextBlock Text="General"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Classes="SubNavButton" x:Name="BtnEnvironment"
+                                        Command="{Binding NavigateCommand}"
+                                        CommandParameter="{x:Static views:View.Environment}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <ia:Icon Value="fa-server" FontSize="13"/>
+                                        <TextBlock Text="Environment"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Classes="SubNavButton" x:Name="BtnDiffusion"
+                                        Command="{Binding NavigateCommand}"
+                                        CommandParameter="{x:Static views:View.Diffusion}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <ia:Icon Value="fa-wand-magic-sparkles" FontSize="13"/>
+                                        <TextBlock Text="Diffusion"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Classes="SubNavButton" x:Name="BtnLoraAdapter"
+                                        Command="{Binding NavigateCommand}"
+                                        CommandParameter="{x:Static views:View.LoraAdapter}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <ia:Icon Value="fa-share-nodes" FontSize="13"/>
+                                        <TextBlock Text="Lora Adapter"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Classes="SubNavButton" x:Name="BtnControlNet"
+                                        Command="{Binding NavigateCommand}"
+                                        CommandParameter="{x:Static views:View.ControlNet}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <ia:Icon Value="fa-network-wired" FontSize="13"/>
+                                        <TextBlock Text="ControlNet"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Classes="SubNavButton" x:Name="BtnExtract"
+                                        Command="{Binding NavigateCommand}"
+                                        CommandParameter="{x:Static views:View.Extract}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <ia:Icon Value="fa-scissors" FontSize="13"/>
+                                        <TextBlock Text="Extractor"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Classes="SubNavButton" x:Name="BtnUpscale"
+                                        Command="{Binding NavigateCommand}"
+                                        CommandParameter="{x:Static views:View.Upscale}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <ia:Icon Value="fa-expand" FontSize="13"/>
+                                        <TextBlock Text="Upscaler"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Classes="SubNavButton" x:Name="BtnDownloads"
+                                        Command="{Binding NavigateCommand}"
+                                        CommandParameter="{x:Static views:View.Downloads}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <ia:Icon Value="fa-download" FontSize="13"/>
+                                        <TextBlock Text="Downloads"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Classes="SubNavButton" x:Name="BtnComponent"
+                                        Command="{Binding NavigateCommand}"
+                                        CommandParameter="{x:Static views:View.Component}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <ia:Icon Value="fa-puzzle-piece" FontSize="13"/>
+                                        <TextBlock Text="Components"/>
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+
+                        </StackPanel>
+                    </ScrollViewer>
+                </DockPanel>
+            </Border>
+
+            <!-- Content Area -->
+            <Border Grid.Column="1" Background="#1A1A1A">
+                <ContentControl Content="{Binding ActiveContent}"/>
+            </Border>
+
+        </Grid>
+    </DockPanel>
+</Window>

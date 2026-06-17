@@ -1,0 +1,17 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Amuse.UI.Linux.Views.StubView">
+    <Grid>
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12">
+            <TextBlock x:Name="TitleText"
+                       FontSize="28"
+                       FontWeight="Light"
+                       Foreground="#CCCCCC"
+                       HorizontalAlignment="Center" />
+            <TextBlock Text="(Coming Soon)"
+                       FontSize="14"
+                       Foreground="#666666"
+                       HorizontalAlignment="Center" />
+        </StackPanel>
+    </Grid>
+</UserControl>

@@ -1,0 +1,113 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Base text -->
+    <Style Selector="TextBlock">
+        <Setter Property="Foreground" Value="#CCCCCC"/>
+        <Setter Property="FontSize" Value="13"/>
+    </Style>
+
+    <!-- Sub menu section header -->
+    <Style Selector="TextBlock.SubMenuHeader">
+        <Setter Property="FontSize" Value="10"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="Foreground" Value="#555555"/>
+        <Setter Property="Margin" Value="16,12,0,4"/>
+        <Setter Property="LetterSpacing" Value="1.5"/>
+    </Style>
+
+    <!-- Top nav buttons -->
+    <Style Selector="Button.NavButton">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="#AAAAAA"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="14,6"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="CornerRadius" Value="4"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Background="{TemplateBinding Background}"
+                        CornerRadius="{TemplateBinding CornerRadius}"
+                        Padding="{TemplateBinding Padding}">
+                    <ContentPresenter Content="{TemplateBinding Content}"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center"/>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="Button.NavButton:pointerover">
+        <Setter Property="Background" Value="#252525"/>
+        <Setter Property="Foreground" Value="#EEEEEE"/>
+    </Style>
+    <Style Selector="Button.NavButton.Selected">
+        <Setter Property="Background" Value="#2A2A2A"/>
+        <Setter Property="Foreground" Value="#4FC3F7"/>
+    </Style>
+
+    <!-- Side nav buttons -->
+    <Style Selector="Button.SubNavButton">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="#999999"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="16,9,12,9"/>
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="CornerRadius" Value="0"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Background="{TemplateBinding Background}"
+                        BorderBrush="#2A2A2A"
+                        Padding="{TemplateBinding Padding}">
+                    <ContentPresenter Content="{TemplateBinding Content}"
+                                      HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                      VerticalAlignment="Center"/>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="Button.SubNavButton:pointerover">
+        <Setter Property="Background" Value="#1E1E1E"/>
+        <Setter Property="Foreground" Value="#DDDDDD"/>
+    </Style>
+    <Style Selector="Button.SubNavButton.Selected">
+        <Setter Property="Background" Value="#1A2A3A"/>
+        <Setter Property="Foreground" Value="#4FC3F7"/>
+    </Style>
+
+    <!-- Window control buttons -->
+    <Style Selector="Button.WinButton">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="#888888"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Width" Value="36"/>
+        <Setter Property="Height" Value="36"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Background="{TemplateBinding Background}"
+                        Padding="{TemplateBinding Padding}">
+                    <ContentPresenter Content="{TemplateBinding Content}"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center"/>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="Button.WinButton:pointerover">
+        <Setter Property="Background" Value="#2A2A2A"/>
+        <Setter Property="Foreground" Value="#EEEEEE"/>
+    </Style>
+    <Style Selector="Button.WinButton.CloseButton:pointerover">
+        <Setter Property="Background" Value="#C0392B"/>
+        <Setter Property="Foreground" Value="White"/>
+    </Style>
+
+</Styles>

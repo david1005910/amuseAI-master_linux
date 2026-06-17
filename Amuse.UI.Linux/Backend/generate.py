@@ -1,0 +1,309 @@
+#!/usr/bin/env python3
+"""Amuse Linux - Diffusion backend.
+Reads a JSON config from stdin, outputs JSON-line progress to stdout.
+Modes: image (default), video, audio, audio_to_text"""
+import sys
+import json
+import os
+import traceback
+import random
+
+# Must be set before torch import — AMD Cezanne iGPU (Vega) segfaults ROCm 7.2
+# when HIP_VISIBLE_DEVICES="-1"; use empty string to suppress without crashing.
+os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")
+os.environ.setdefault("HIP_VISIBLE_DEVICES", "")
+os.environ.setdefault("ROCR_VISIBLE_DEVICES", "")
+
+
+def emit(msg_type, **kwargs):
+    print(json.dumps({"type": msg_type, **kwargs}), flush=True)
+
+
+def check_deps():
+    missing = []
+    for pkg in ["diffusers", "torch", "transformers", "accelerate", "PIL"]:
+        try:
+            __import__(pkg)
+        except ImportError:
+            missing.append(pkg if pkg != "PIL" else "Pillow")
+    return missing
+
+
+def get_device():
+    import torch
+    cuda = os.environ.get("CUDA_VISIBLE_DEVICES", "unset")
+    hip  = os.environ.get("HIP_VISIBLE_DEVICES",  "unset")
+    if cuda in ("", "-1") or hip in ("", "-1"):
+        emit("info", message="Using CPU (GPU disabled by environment)")
+        return "cpu", torch.float32
+    if torch.cuda.is_available():
+        try:
+            t = torch.tensor([1.0]).cuda()
+            _ = (t * 2).cpu().item()
+            name = torch.cuda.get_device_name(0)
+            emit("info", message=f"GPU: {name}")
+            return "cuda", torch.float16
+        except Exception as e:
+            emit("info", message=f"GPU test failed ({e}), falling back to CPU")
+    emit("info", message="Using CPU (this will be slow)")
+    return "cpu", torch.float32
+
+
+# ── Image ─────────────────────────────────────────────────────────────────────
+
+def generate_image(config):
+    import torch
+    from diffusers import (
+        StableDiffusionPipeline,
+        StableDiffusionXLPipeline,
+        DPMSolverMultistepScheduler,
+        EulerAncestralDiscreteScheduler,
+        EulerDiscreteScheduler,
+        DDIMScheduler,
+        LMSDiscreteScheduler,
+        PNDMScheduler,
+    )
+
+    model_id       = config.get("model_id", "runwayml/stable-diffusion-v1-5")
+    prompt         = config.get("prompt", "")
+    neg_prompt     = config.get("negative_prompt", "")
+    width          = int(config.get("width", 512))
+    height         = int(config.get("height", 512))
+    steps          = int(config.get("steps", 20))
+    guidance       = float(config.get("guidance_scale", 7.5))
+    seed           = int(config.get("seed", -1))
+    scheduler_name = config.get("scheduler", "DPMSolverMultistep")
+    output_path    = config.get("output_path", "/tmp/amuse_output.png")
+    is_xl          = config.get("is_xl", False)
+
+    device, dtype = get_device()
+    emit("progress", step=0, total=steps, message="Loading model…")
+
+    pipeline_cls = StableDiffusionXLPipeline if is_xl else StableDiffusionPipeline
+    kwargs = {"torch_dtype": dtype}
+    if not is_xl:
+        kwargs["safety_checker"] = None
+        kwargs["requires_safety_checker"] = False
+
+    pipe = pipeline_cls.from_pretrained(model_id, **kwargs)
+
+    scheduler_map = {
+        "DPMSolverMultistep": DPMSolverMultistepScheduler,
+        "EulerA":             EulerAncestralDiscreteScheduler,
+        "Euler":              EulerDiscreteScheduler,
+        "DDIM":               DDIMScheduler,
+        "LMS":                LMSDiscreteScheduler,
+        "PNDM":               PNDMScheduler,
+    }
+    if scheduler_name in scheduler_map:
+        pipe.scheduler = scheduler_map[scheduler_name].from_config(pipe.scheduler.config)
+
+    pipe = pipe.to(device)
+    if device == "cpu":
+        pipe.enable_attention_slicing()
+
+    if seed < 0:
+        seed = random.randint(0, 2**32 - 1)
+    emit("seed", value=seed)
+
+    generator = torch.Generator(device=device).manual_seed(seed)
+
+    def on_step(pipe, step, timestep, cb_kwargs):
+        emit("progress", step=step + 1, total=steps, message=f"Step {step+1}/{steps}")
+        return cb_kwargs
+
+    emit("progress", step=0, total=steps, message="Generating…")
+    result = pipe(
+        prompt=prompt,
+        negative_prompt=neg_prompt or None,
+        width=width,
+        height=height,
+        num_inference_steps=steps,
+        guidance_scale=guidance,
+        generator=generator,
+        callback_on_step_end=on_step,
+    )
+
+    os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+    result.images[0].save(output_path)
+    emit("complete", output_path=output_path, seed=seed)
+
+
+# ── Video ─────────────────────────────────────────────────────────────────────
+
+def generate_video(config):
+    import torch
+    from diffusers import DiffusionPipeline
+
+    model_id   = config.get("model_id", "damo-vilab/text-to-video-ms-1.7b")
+    prompt     = config.get("prompt", "")
+    num_frames = int(config.get("num_frames", 16))
+    steps      = int(config.get("steps", 25))
+    fps        = int(config.get("fps", 8))
+    output_path = config.get("output_path", "/tmp/amuse_video.gif")
+
+    device, dtype = get_device()
+    emit("progress", step=0, total=steps, message="Loading video model…")
+
+    pipe = DiffusionPipeline.from_pretrained(model_id, torch_dtype=dtype)
+    pipe = pipe.to(device)
+    if device == "cpu":
+        pipe.enable_attention_slicing()
+
+    emit("progress", step=0, total=steps, message="Generating frames…")
+
+    def on_step(pipe, step, timestep, cb_kwargs):
+        emit("progress", step=step + 1, total=steps, message=f"Step {step+1}/{steps}")
+        return cb_kwargs
+
+    result = pipe(
+        prompt=prompt,
+        num_frames=num_frames,
+        num_inference_steps=steps,
+        callback_on_step_end=on_step,
+    )
+
+    frames = result.frames[0]  # list of PIL images
+
+    os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+
+    # Save animated GIF using PIL
+    frame_duration_ms = max(1, int(1000 / fps))
+    frames[0].save(
+        output_path,
+        save_all=True,
+        append_images=frames[1:],
+        optimize=False,
+        duration=frame_duration_ms,
+        loop=0,
+    )
+
+    # First frame as static preview
+    preview_path = output_path.replace(".gif", "_preview.png")
+    frames[0].save(preview_path)
+
+    emit("complete", output_path=output_path, preview_path=preview_path,
+         num_frames=len(frames), fps=fps)
+
+
+# ── Audio ─────────────────────────────────────────────────────────────────────
+
+def generate_audio(config):
+    import torch
+    import numpy as np
+    import wave
+
+    model_id    = config.get("model_id", "facebook/musicgen-small")
+    prompt      = config.get("prompt", "")
+    duration    = float(config.get("duration", 10.0))
+    output_path = config.get("output_path", "/tmp/amuse_audio.wav")
+
+    emit("progress", step=0, total=2, message="Loading audio model…")
+
+    # Use MusicgenForConditionalGeneration directly — AutoModelForTextToWaveform
+    # triggers a diffusers model_index.json probe first, which 404s for musicgen.
+    from transformers import AutoProcessor, MusicgenForConditionalGeneration
+
+    processor = AutoProcessor.from_pretrained(model_id)
+    model     = MusicgenForConditionalGeneration.from_pretrained(
+        model_id, torch_dtype=torch.float32
+    )
+    model.eval()
+
+    sampling_rate = model.config.audio_encoder.sampling_rate  # 32000 for musicgen
+
+    # 1 token ≈ 640 samples at 32 kHz → tokens_per_sec ≈ 50
+    tokens_per_sec = sampling_rate / 640
+    max_new_tokens = max(50, int(duration * tokens_per_sec))
+
+    emit("progress", step=1, total=2, message=f"Generating {duration:.0f}s of audio…")
+
+    inputs = processor(text=[prompt], padding=True, return_tensors="pt")
+
+    with torch.no_grad():
+        audio_values = model.generate(**inputs, max_new_tokens=max_new_tokens)
+
+    # audio_values: (batch, channels, samples), float32 in [-1, 1]
+    audio = audio_values[0, 0].cpu().numpy()
+
+    os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+
+    audio_int16 = np.clip(audio * 32767, -32768, 32767).astype(np.int16)
+    with wave.open(output_path, "w") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(sampling_rate)
+        wf.writeframes(audio_int16.tobytes())
+
+    actual_duration = len(audio_int16) / sampling_rate
+    emit("complete", output_path=output_path,
+         duration=round(actual_duration, 1), sampling_rate=sampling_rate)
+    emit("progress", step=2, total=2, message="Done")
+
+
+# ── Audio to Text (Whisper) ───────────────────────────────────────────────────
+
+def audio_to_text(config):
+    from transformers import pipeline as hf_pipeline
+
+    model_id   = config.get("model_id", "openai/whisper-base")
+    audio_path = config.get("audio_path", "")
+    language   = config.get("language") or None   # None = auto-detect
+    output_path = config.get("output_path", "/tmp/amuse_transcript.txt")
+
+    if not audio_path or not os.path.exists(audio_path):
+        raise FileNotFoundError(f"Audio file not found: {audio_path}")
+
+    emit("progress", step=0, total=2, message="Loading Whisper model…")
+
+    pipe = hf_pipeline(
+        "automatic-speech-recognition",
+        model=model_id,
+        device="cpu",
+        chunk_length_s=30,
+    )
+
+    emit("progress", step=1, total=2, message="Transcribing audio…")
+
+    kwargs = {}
+    if language:
+        kwargs["generate_kwargs"] = {"language": language}
+
+    result = pipe(audio_path, **kwargs)
+    text = result["text"].strip()
+
+    os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write(text)
+
+    emit("complete", output_path=output_path, text=text)
+    emit("progress", step=2, total=2, message="Done")
+
+
+# ── Entry point ───────────────────────────────────────────────────────────────
+
+if __name__ == "__main__":
+    raw = sys.stdin.readline().strip()
+    if not raw:
+        emit("error", message="No input received")
+        sys.exit(1)
+
+    missing = check_deps()
+    if missing:
+        emit("missing_deps", packages=missing)
+        sys.exit(2)
+
+    try:
+        config = json.loads(raw)
+        mode = config.get("mode", "image")
+        if mode == "video":
+            generate_video(config)
+        elif mode == "audio":
+            generate_audio(config)
+        elif mode == "audio_to_text":
+            audio_to_text(config)
+        else:
+            generate_image(config)
+    except Exception as e:
+        emit("error", message=str(e), traceback=traceback.format_exc())
+        sys.exit(1)
