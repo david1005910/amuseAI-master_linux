@@ -113,10 +113,18 @@ namespace Amuse.UI.Linux.Services
             if (!File.Exists(script))
                 throw new FileNotFoundException($"Backend script not found: {script}");
 
-            var outputPath = Path.Combine(Path.GetTempPath(), $"amuse_{Guid.NewGuid():N}.png");
+            var ext = request.Mode switch
+            {
+                "audio"        => ".wav",
+                "video"        => ".gif",
+                "audio_to_text"=> ".txt",
+                _              => ".png",
+            };
+            var outputPath = Path.Combine(Path.GetTempPath(), $"amuse_{Guid.NewGuid():N}{ext}");
 
             var config = JsonSerializer.Serialize(new
             {
+                mode            = request.Mode,
                 model_id        = request.ModelId,
                 prompt          = request.Prompt,
                 negative_prompt = request.NegativePrompt,
@@ -127,6 +135,11 @@ namespace Amuse.UI.Linux.Services
                 seed            = request.Seed,
                 scheduler       = request.Scheduler,
                 is_xl           = request.IsXL,
+                num_frames      = request.NumFrames,
+                fps             = request.Fps,
+                duration        = request.Duration,
+                audio_path      = request.AudioPath,
+                language        = request.Language,
                 output_path     = outputPath,
             });
 
