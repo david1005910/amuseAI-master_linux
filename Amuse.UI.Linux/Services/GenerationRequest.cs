@@ -22,6 +22,12 @@ namespace Amuse.UI.Linux.Services
         // audio_to_text
         public string AudioPath      { get; set; } = "";
         public string Language       { get; set; } = "";   // empty = auto-detect
+        // image_to_image / inpaint / paint_to_image
+        public string InputImagePath { get; set; } = "";
+        public string MaskImagePath  { get; set; } = "";
+        public float  Strength       { get; set; } = 0.75f;
+        // image_edit
+        public float  ImageGuidanceScale { get; set; } = 1.5f;
     }
 
     public class GenerationProgress

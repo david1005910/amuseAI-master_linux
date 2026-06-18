@@ -120,6 +120,7 @@ namespace Amuse.UI.Linux.Services
                 "audio_to_text"=> ".txt",
                 _              => ".png",
             };
+            // image_to_image / inpaint / paint_to_image / image_edit → .png (already default)
             var outputPath = Path.Combine(Path.GetTempPath(), $"amuse_{Guid.NewGuid():N}{ext}");
 
             var config = JsonSerializer.Serialize(new
@@ -138,9 +139,13 @@ namespace Amuse.UI.Linux.Services
                 num_frames      = request.NumFrames,
                 fps             = request.Fps,
                 duration        = request.Duration,
-                audio_path      = request.AudioPath,
-                language        = request.Language,
-                output_path     = outputPath,
+                audio_path           = request.AudioPath,
+                language             = request.Language,
+                input_image_path     = request.InputImagePath,
+                mask_image_path      = request.MaskImagePath,
+                strength             = request.Strength,
+                image_guidance_scale = request.ImageGuidanceScale,
+                output_path          = outputPath,
             });
 
             var psi = new ProcessStartInfo

@@ -280,6 +280,246 @@ def audio_to_text(config):
     emit("progress", step=2, total=2, message="Done")
 
 
+# ── Image to Image ────────────────────────────────────────────────────────────
+
+def generate_image_to_image(config):
+    import torch
+    from diffusers import StableDiffusionImg2ImgPipeline, StableDiffusionXLImg2ImgPipeline
+    from PIL import Image as PILImage
+
+    model_id         = config.get("model_id", "runwayml/stable-diffusion-v1-5")
+    prompt           = config.get("prompt", "")
+    neg_prompt       = config.get("negative_prompt", "")
+    input_image_path = config.get("input_image_path", "")
+    strength         = float(config.get("strength", 0.75))
+    steps            = int(config.get("steps", 20))
+    guidance         = float(config.get("guidance_scale", 7.5))
+    seed             = int(config.get("seed", -1))
+    output_path      = config.get("output_path", "/tmp/amuse_output.png")
+    is_xl            = config.get("is_xl", False)
+
+    if not input_image_path or not os.path.exists(input_image_path):
+        emit("error", message=f"Input image not found: {input_image_path}")
+        return
+
+    device, dtype = get_device()
+    emit("progress", step=0, total=steps, message="Loading img2img model…")
+
+    init_image = PILImage.open(input_image_path).convert("RGB")
+    pipeline_cls = StableDiffusionXLImg2ImgPipeline if is_xl else StableDiffusionImg2ImgPipeline
+    kwargs = {"torch_dtype": dtype}
+    if not is_xl:
+        kwargs["safety_checker"] = None
+        kwargs["requires_safety_checker"] = False
+
+    pipe = pipeline_cls.from_pretrained(model_id, **kwargs)
+    pipe = pipe.to(device)
+    if device == "cpu":
+        pipe.enable_attention_slicing()
+
+    if seed < 0:
+        seed = random.randint(0, 2**32 - 1)
+    emit("seed", value=seed)
+    generator = torch.Generator(device=device).manual_seed(seed)
+
+    def on_step(pipe, step, timestep, cb_kwargs):
+        emit("progress", step=step+1, total=steps, message=f"Step {step+1}/{steps}")
+        return cb_kwargs
+
+    emit("progress", step=0, total=steps, message="Generating…")
+    result = pipe(
+        prompt=prompt,
+        negative_prompt=neg_prompt or None,
+        image=init_image,
+        strength=strength,
+        num_inference_steps=steps,
+        guidance_scale=guidance,
+        generator=generator,
+        callback_on_step_end=on_step,
+    )
+
+    os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+    result.images[0].save(output_path)
+    emit("complete", output_path=output_path, seed=seed)
+
+
+# ── Image Edit (InstructPix2Pix) ──────────────────────────────────────────────
+
+def generate_image_edit(config):
+    import torch
+    from diffusers import StableDiffusionInstructPix2PixPipeline
+    from PIL import Image as PILImage
+
+    model_id         = config.get("model_id", "timbrooks/instruct-pix2pix")
+    prompt           = config.get("prompt", "")
+    input_image_path = config.get("input_image_path", "")
+    steps            = int(config.get("steps", 20))
+    guidance         = float(config.get("guidance_scale", 7.5))
+    image_guidance   = float(config.get("image_guidance_scale", 1.5))
+    seed             = int(config.get("seed", -1))
+    output_path      = config.get("output_path", "/tmp/amuse_output.png")
+
+    if not input_image_path or not os.path.exists(input_image_path):
+        emit("error", message=f"Input image not found: {input_image_path}")
+        return
+
+    device, dtype = get_device()
+    emit("progress", step=0, total=steps, message="Loading InstructPix2Pix model…")
+
+    init_image = PILImage.open(input_image_path).convert("RGB")
+    pipe = StableDiffusionInstructPix2PixPipeline.from_pretrained(
+        model_id, torch_dtype=dtype, safety_checker=None
+    )
+    pipe = pipe.to(device)
+    if device == "cpu":
+        pipe.enable_attention_slicing()
+
+    if seed < 0:
+        seed = random.randint(0, 2**32 - 1)
+    emit("seed", value=seed)
+    generator = torch.Generator(device=device).manual_seed(seed)
+
+    def on_step(pipe, step, timestep, cb_kwargs):
+        emit("progress", step=step+1, total=steps, message=f"Step {step+1}/{steps}")
+        return cb_kwargs
+
+    emit("progress", step=0, total=steps, message="Editing image…")
+    result = pipe(
+        prompt,
+        image=init_image,
+        num_inference_steps=steps,
+        guidance_scale=guidance,
+        image_guidance_scale=image_guidance,
+        generator=generator,
+        callback_on_step_end=on_step,
+    )
+
+    os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+    result.images[0].save(output_path)
+    emit("complete", output_path=output_path, seed=seed)
+
+
+# ── Inpaint ───────────────────────────────────────────────────────────────────
+
+def generate_inpaint(config):
+    import torch
+    from diffusers import StableDiffusionInpaintPipeline
+    from PIL import Image as PILImage
+
+    model_id         = config.get("model_id", "runwayml/stable-diffusion-inpainting")
+    prompt           = config.get("prompt", "")
+    neg_prompt       = config.get("negative_prompt", "")
+    input_image_path = config.get("input_image_path", "")
+    mask_image_path  = config.get("mask_image_path", "")
+    steps            = int(config.get("steps", 20))
+    guidance         = float(config.get("guidance_scale", 7.5))
+    seed             = int(config.get("seed", -1))
+    output_path      = config.get("output_path", "/tmp/amuse_output.png")
+
+    if not input_image_path or not os.path.exists(input_image_path):
+        emit("error", message=f"Input image not found: {input_image_path}")
+        return
+    if not mask_image_path or not os.path.exists(mask_image_path):
+        emit("error", message=f"Mask image not found: {mask_image_path}")
+        return
+
+    device, dtype = get_device()
+    emit("progress", step=0, total=steps, message="Loading inpainting model…")
+
+    init_image = PILImage.open(input_image_path).convert("RGB").resize((512, 512))
+    mask_image = PILImage.open(mask_image_path).convert("RGB").resize((512, 512))
+
+    pipe = StableDiffusionInpaintPipeline.from_pretrained(
+        model_id, torch_dtype=dtype, safety_checker=None
+    )
+    pipe = pipe.to(device)
+    if device == "cpu":
+        pipe.enable_attention_slicing()
+
+    if seed < 0:
+        seed = random.randint(0, 2**32 - 1)
+    emit("seed", value=seed)
+    generator = torch.Generator(device=device).manual_seed(seed)
+
+    def on_step(pipe, step, timestep, cb_kwargs):
+        emit("progress", step=step+1, total=steps, message=f"Step {step+1}/{steps}")
+        return cb_kwargs
+
+    emit("progress", step=0, total=steps, message="Inpainting…")
+    result = pipe(
+        prompt=prompt,
+        negative_prompt=neg_prompt or None,
+        image=init_image,
+        mask_image=mask_image,
+        num_inference_steps=steps,
+        guidance_scale=guidance,
+        generator=generator,
+        callback_on_step_end=on_step,
+    )
+
+    os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+    result.images[0].save(output_path)
+    emit("complete", output_path=output_path, seed=seed)
+
+
+# ── Paint to Image ────────────────────────────────────────────────────────────
+
+def generate_paint_to_image(config):
+    import torch
+    from diffusers import StableDiffusionImg2ImgPipeline
+    from PIL import Image as PILImage
+
+    model_id         = config.get("model_id", "runwayml/stable-diffusion-v1-5")
+    prompt           = config.get("prompt", "")
+    neg_prompt       = config.get("negative_prompt", "")
+    input_image_path = config.get("input_image_path", "")
+    strength         = float(config.get("strength", 0.9))
+    steps            = int(config.get("steps", 20))
+    guidance         = float(config.get("guidance_scale", 7.5))
+    seed             = int(config.get("seed", -1))
+    output_path      = config.get("output_path", "/tmp/amuse_output.png")
+
+    if not input_image_path or not os.path.exists(input_image_path):
+        emit("error", message=f"Input image not found: {input_image_path}")
+        return
+
+    device, dtype = get_device()
+    emit("progress", step=0, total=steps, message="Loading model…")
+
+    init_image = PILImage.open(input_image_path).convert("RGB")
+    pipe = StableDiffusionImg2ImgPipeline.from_pretrained(
+        model_id, torch_dtype=dtype, safety_checker=None, requires_safety_checker=False
+    )
+    pipe = pipe.to(device)
+    if device == "cpu":
+        pipe.enable_attention_slicing()
+
+    if seed < 0:
+        seed = random.randint(0, 2**32 - 1)
+    emit("seed", value=seed)
+    generator = torch.Generator(device=device).manual_seed(seed)
+
+    def on_step(pipe, step, timestep, cb_kwargs):
+        emit("progress", step=step+1, total=steps, message=f"Step {step+1}/{steps}")
+        return cb_kwargs
+
+    emit("progress", step=0, total=steps, message="Generating from paint…")
+    result = pipe(
+        prompt=prompt,
+        negative_prompt=neg_prompt or None,
+        image=init_image,
+        strength=strength,
+        num_inference_steps=steps,
+        guidance_scale=guidance,
+        generator=generator,
+        callback_on_step_end=on_step,
+    )
+
+    os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+    result.images[0].save(output_path)
+    emit("complete", output_path=output_path, seed=seed)
+
+
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -302,6 +542,14 @@ if __name__ == "__main__":
             generate_audio(config)
         elif mode == "audio_to_text":
             audio_to_text(config)
+        elif mode == "image_to_image":
+            generate_image_to_image(config)
+        elif mode == "image_edit":
+            generate_image_edit(config)
+        elif mode == "inpaint":
+            generate_inpaint(config)
+        elif mode == "paint_to_image":
+            generate_paint_to_image(config)
         else:
             generate_image(config)
     except Exception as e:
