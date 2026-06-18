@@ -1,0 +1,6 @@
+.env
+*.exe
+*.docx
+*.lock
+remotion/node_modules/
+remotion/output/
