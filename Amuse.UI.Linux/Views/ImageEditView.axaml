@@ -1,0 +1,298 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Amuse.UI.Linux.ViewModels"
+             xmlns:ia="using:Projektanker.Icons.Avalonia"
+             x:Class="Amuse.UI.Linux.Views.ImageEditView"
+             x:DataType="vm:ImageEditViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="TextBlock.Label">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="#888888"/>
+            <Setter Property="Margin" Value="0,10,0,3"/>
+        </Style>
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="#1E1E1E"/>
+            <Setter Property="BorderBrush" Value="#333333"/>
+            <Setter Property="Foreground" Value="#DDDDDD"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+        <Style Selector="Slider">
+            <Setter Property="Foreground" Value="#4FC3F7"/>
+        </Style>
+        <Style Selector="ComboBox">
+            <Setter Property="Background" Value="#1E1E1E"/>
+            <Setter Property="BorderBrush" Value="#333333"/>
+            <Setter Property="Foreground" Value="#DDDDDD"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        </Style>
+        <Style Selector="Button.Primary">
+            <Setter Property="Background" Value="#1565C0"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Height" Value="40"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="14"/>
+        </Style>
+        <Style Selector="Button.Primary:pointerover">
+            <Setter Property="Background" Value="#1976D2"/>
+        </Style>
+        <Style Selector="Button.Primary:disabled">
+            <Setter Property="Background" Value="#2A2A2A"/>
+            <Setter Property="Foreground" Value="#555555"/>
+        </Style>
+        <Style Selector="Button.Secondary">
+            <Setter Property="Background" Value="#252525"/>
+            <Setter Property="Foreground" Value="#AAAAAA"/>
+            <Setter Property="BorderBrush" Value="#333333"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+        <Style Selector="Button.Secondary:pointerover">
+            <Setter Property="Background" Value="#2E2E2E"/>
+            <Setter Property="Foreground" Value="#EEEEEE"/>
+        </Style>
+        <Style Selector="Button.Danger">
+            <Setter Property="Background" Value="#7f1111"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Height" Value="40"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="FontSize" Value="14"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Grid ColumnDefinitions="320,*">
+
+        <!-- ===== LEFT PANEL ===== -->
+        <Border Grid.Column="0" Background="#141414"
+                BorderBrush="#2A2A2A" BorderThickness="0,0,1,0">
+            <DockPanel>
+
+                <Grid DockPanel.Dock="Bottom" Margin="12,8">
+                    <Button Classes="Primary" Content="Edit Image"
+                            Command="{Binding GenerateCommand}"
+                            HorizontalAlignment="Stretch"
+                            IsVisible="{Binding !IsGenerating}"/>
+                    <Button Classes="Danger" Command="{Binding CancelCommand}"
+                            HorizontalAlignment="Stretch"
+                            IsVisible="{Binding IsGenerating}">
+                        <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                            <ia:Icon Value="fa-stop" FontSize="13"/>
+                            <TextBlock Text="Cancel" Foreground="White"/>
+                        </StackPanel>
+                    </Button>
+                </Grid>
+
+                <Border DockPanel.Dock="Top" Background="#1A2A1A" BorderBrush="#2E4D2E"
+                        BorderThickness="0,0,0,1" Padding="12,8" IsVisible="{Binding HasDeps}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <ia:Icon Value="fa-circle-check" FontSize="13" Foreground="#4CAF50"/>
+                        <TextBlock Text="{Binding DepsStatus}" FontSize="12" Foreground="#88BB88"/>
+                    </StackPanel>
+                </Border>
+                <Border DockPanel.Dock="Top" Background="#2A1A1A" BorderBrush="#4D2E2E"
+                        BorderThickness="0,0,0,1" Padding="12,10" IsVisible="{Binding !HasDeps}">
+                    <StackPanel Spacing="6">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <ia:Icon Value="fa-triangle-exclamation" FontSize="13" Foreground="#FFA726"/>
+                            <TextBlock Text="{Binding DepsStatus}" FontSize="12" Foreground="#FFAA66" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <Button Classes="Secondary" Content="Install Dependencies"
+                                Command="{Binding InstallDepsCommand}"
+                                IsEnabled="{Binding !IsInstalling}" HorizontalAlignment="Left"/>
+                    </StackPanel>
+                </Border>
+
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Margin="12,8,12,12" Spacing="0">
+
+                        <!-- Input Image -->
+                        <TextBlock Text="SOURCE IMAGE" Classes="Label"/>
+                        <Border Background="#1A1A1A" BorderBrush="#333" BorderThickness="1"
+                                CornerRadius="4" Height="120" Margin="0,0,0,6">
+                            <Grid>
+                                <Image Source="{Binding InputImagePreview}" Stretch="Uniform" Margin="4"
+                                       IsVisible="{Binding InputImagePreview, Converter={x:Static vm:NotNullConverter.Instance}}"/>
+                                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="4"
+                                            IsVisible="{Binding InputImagePreview, Converter={x:Static vm:NullConverter.Instance}}">
+                                    <ia:Icon Value="fa-image" FontSize="32" Foreground="#333"/>
+                                    <TextBlock Text="No image selected" FontSize="11" Foreground="#555" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                        <Button Classes="Secondary" Click="OnBrowseInputImageClick"
+                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <ia:Icon Value="fa-folder-open" FontSize="12"/>
+                                <TextBlock Text="Browse Image…"/>
+                            </StackPanel>
+                        </Button>
+                        <TextBox Text="{Binding InputImagePath}" Margin="0,4,0,0"
+                                 Watermark="Or enter image path…" FontSize="11"/>
+
+                        <!-- Model -->
+                        <TextBlock Text="MODEL" Classes="Label"/>
+                        <ComboBox ItemsSource="{Binding ModelPresets}"
+                                  SelectedValue="{Binding SelectedModel}"
+                                  SelectedValueBinding="{Binding ModelId}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Label}" FontSize="12"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <TextBox Text="{Binding SelectedModel}" Watermark="HuggingFace model ID" Margin="0,4,0,0"/>
+
+                        <!-- Edit Instruction -->
+                        <Grid Margin="0,10,0,3">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="EDIT INSTRUCTION" FontSize="11" Foreground="#888888" VerticalAlignment="Center"/>
+                            <Button Grid.Column="1" Click="OnPastePromptClick"
+                                    Background="Transparent" BorderThickness="0"
+                                    Padding="4,0" ToolTip.Tip="Paste from clipboard">
+                                <ia:Icon Value="fa-paste" FontSize="11" Foreground="#555555"/>
+                            </Button>
+                        </Grid>
+                        <TextBox Text="{Binding Prompt}" AcceptsReturn="True"
+                                 TextWrapping="Wrap" Height="80"
+                                 Watermark="e.g. Make the sky purple and add clouds…"/>
+
+                        <!-- Steps -->
+                        <Grid Margin="0,10,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="STEPS" Classes="Label" Margin="0,0,0,0"/>
+                            <TextBlock Grid.Column="1" Text="{Binding Steps}"
+                                       FontSize="13" Foreground="#4FC3F7" VerticalAlignment="Center"/>
+                        </Grid>
+                        <Slider Value="{Binding Steps}" Minimum="1" Maximum="100"
+                                TickFrequency="1" IsSnapToTickEnabled="True"/>
+
+                        <!-- Guidance Scale -->
+                        <Grid Margin="0,6,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="GUIDANCE SCALE" Classes="Label" Margin="0,0,0,0"/>
+                            <TextBlock Grid.Column="1" Text="{Binding GuidanceScale, StringFormat={}{0:F1}}"
+                                       FontSize="13" Foreground="#4FC3F7" VerticalAlignment="Center"/>
+                        </Grid>
+                        <Slider Value="{Binding GuidanceScale}" Minimum="1" Maximum="20" TickFrequency="0.5"/>
+
+                        <!-- Image Guidance Scale -->
+                        <Grid Margin="0,6,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="IMAGE GUIDANCE" Classes="Label" Margin="0,0,0,0"/>
+                            <TextBlock Grid.Column="1" Text="{Binding ImageGuidanceScale, StringFormat={}{0:F1}}"
+                                       FontSize="13" Foreground="#4FC3F7" VerticalAlignment="Center"/>
+                        </Grid>
+                        <Slider Value="{Binding ImageGuidanceScale}" Minimum="1" Maximum="5" TickFrequency="0.1"/>
+                        <TextBlock Text="Higher = preserve source image more"
+                                   FontSize="10" Foreground="#555" TextWrapping="Wrap"/>
+
+                        <!-- Seed -->
+                        <TextBlock Text="SEED" Classes="Label"/>
+                        <Grid ColumnDefinitions="*,36,36">
+                            <NumericUpDown Grid.Column="0" Value="{Binding Seed}"
+                                           Minimum="-1" Maximum="2147483647" FormatString="0"/>
+                            <Button Grid.Column="1" Classes="Secondary" Command="{Binding RandomSeedCommand}"
+                                    Padding="0" Width="32" Height="32" Margin="4,0,0,0" ToolTip.Tip="Random seed">
+                                <ia:Icon Value="fa-shuffle" FontSize="12"/>
+                            </Button>
+                            <Button Grid.Column="2" Classes="Secondary" Command="{Binding ResetSeedCommand}"
+                                    Padding="0" Width="32" Height="32" Margin="4,0,0,0" ToolTip.Tip="Auto (-1)">
+                                <ia:Icon Value="fa-rotate-left" FontSize="12"/>
+                            </Button>
+                        </Grid>
+
+                        <Border Margin="0,12,0,0" IsVisible="{Binding IsInstalling}"
+                                Background="#111" CornerRadius="4" Padding="8">
+                            <ScrollViewer Height="120" VerticalScrollBarVisibility="Auto">
+                                <TextBlock Text="{Binding InstallLog}" FontFamily="Monospace"
+                                           FontSize="11" Foreground="#88BB88" TextWrapping="Wrap"/>
+                            </ScrollViewer>
+                        </Border>
+
+                    </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+
+        <!-- ===== RIGHT PANEL ===== -->
+        <Grid Grid.Column="1" Background="#1A1A1A">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <Border Grid.Row="0" Background="#111111" BorderBrush="#2A2A2A"
+                    BorderThickness="0,0,0,1" Padding="16,8">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                        <ProgressBar Value="{Binding ProgressValue}" Maximum="{Binding ProgressMax}"
+                                     Width="200" Height="4" Foreground="#4FC3F7" Background="#2A2A2A"
+                                     IsVisible="{Binding IsGenerating}"/>
+                        <TextBlock Text="{Binding StatusText}" FontSize="12" Foreground="#888888" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding TimeElapsed}" FontSize="12" Foreground="#555555"
+                                   VerticalAlignment="Center"
+                                   IsVisible="{Binding TimeElapsed, Converter={x:Static vm:StringNotEmptyConverter.Instance}}"/>
+                    </StackPanel>
+                    <Button Grid.Column="1" Classes="Secondary" Command="{Binding SaveImageCommand}"
+                            IsVisible="{Binding ResultImage, Converter={x:Static vm:NotNullConverter.Instance}}">
+                        <StackPanel Orientation="Horizontal" Spacing="5">
+                            <ia:Icon Value="fa-floppy-disk" FontSize="12"/>
+                            <TextBlock Text="Save"/>
+                        </StackPanel>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <Grid Grid.Row="1">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12"
+                            IsVisible="{Binding ResultImage, Converter={x:Static vm:NullConverter.Instance}}">
+                    <ia:Icon Value="fa-wand-magic-sparkles" FontSize="64" Foreground="#2A2A2A"/>
+                    <TextBlock Text="Edited image will appear here" FontSize="14" Foreground="#444444" HorizontalAlignment="Center"/>
+                    <TextBlock Text="Select an image, enter an edit instruction, then click Edit Image"
+                               FontSize="12" Foreground="#333333" HorizontalAlignment="Center" TextWrapping="Wrap"
+                               MaxWidth="400" TextAlignment="Center"/>
+                </StackPanel>
+
+                <Border IsVisible="{Binding ResultImage, Converter={x:Static vm:NotNullConverter.Instance}}" Padding="20">
+                    <Image Source="{Binding ResultImage}" Stretch="Uniform"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+
+                <Border IsVisible="{Binding IsGenerating}" Background="#88000000">
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="16">
+                        <ia:Icon Value="fa-spinner" FontSize="40" Foreground="#4FC3F7"/>
+                        <TextBlock Text="{Binding StatusText}" FontSize="14" Foreground="#CCCCCC" HorizontalAlignment="Center"/>
+                        <ProgressBar Value="{Binding ProgressValue}" Maximum="{Binding ProgressMax}"
+                                     Width="300" Height="6" Foreground="#4FC3F7" Background="#2A2A2A"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Grid>
+
+    </Grid>
+</UserControl>

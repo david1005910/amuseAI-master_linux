@@ -7,10 +7,10 @@ namespace Amuse.UI.Linux.Views
         public static Control Create(View view) => view switch
         {
             View.TextToImage    => new TextToImageView(),
-            View.ImageToImage   => new StubView("Image to Image"),
-            View.ImageEdit      => new StubView("Image Edit"),
-            View.ImageInpaint   => new StubView("Image Inpaint"),
-            View.PaintToImage   => new StubView("Paint to Image"),
+            View.ImageToImage   => new ImageToImageView(),
+            View.ImageEdit      => new ImageEditView(),
+            View.ImageInpaint   => new ImageInpaintView(),
+            View.PaintToImage   => new PaintToImageView(),
             View.ImageUpscale   => new StubView("Image Upscale"),
             View.ImageExtract   => new StubView("Image Extract"),
             View.ImageCompose   => new StubView("Image Compose"),
