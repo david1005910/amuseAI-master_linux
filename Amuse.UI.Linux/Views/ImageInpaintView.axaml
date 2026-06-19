@@ -135,8 +135,19 @@
                                 <TextBlock Text="Browse Source Image…"/>
                             </StackPanel>
                         </Button>
-                        <TextBox Text="{Binding InputImagePath}" Margin="0,4,0,0"
-                                 Watermark="Or enter image path…" FontSize="11"/>
+                        <Grid Margin="0,4,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox Grid.Column="0" Text="{Binding InputImagePath}"
+                                     Watermark="Or enter image path…" FontSize="11"/>
+                            <Button Grid.Column="1" Click="OnPastePathClick"
+                                    Background="Transparent" BorderThickness="0"
+                                    Padding="6,0" ToolTip.Tip="Paste path from clipboard">
+                                <ia:Icon Value="fa-paste" FontSize="11" Foreground="#555555"/>
+                            </Button>
+                        </Grid>
 
                         <!-- Mask Image -->
                         <TextBlock Text="MASK IMAGE (white = fill area)" Classes="Label"/>
@@ -159,8 +170,19 @@
                                 <TextBlock Text="Browse Mask Image…"/>
                             </StackPanel>
                         </Button>
-                        <TextBox Text="{Binding MaskImagePath}" Margin="0,4,0,0"
-                                 Watermark="Or enter mask path…" FontSize="11"/>
+                        <Grid Margin="0,4,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox Grid.Column="0" Text="{Binding MaskImagePath}"
+                                     Watermark="Or enter mask path…" FontSize="11"/>
+                            <Button Grid.Column="1" Click="OnPasteMaskPathClick"
+                                    Background="Transparent" BorderThickness="0"
+                                    Padding="6,0" ToolTip.Tip="Paste mask path from clipboard">
+                                <ia:Icon Value="fa-paste" FontSize="11" Foreground="#555555"/>
+                            </Button>
+                        </Grid>
 
                         <!-- Model -->
                         <TextBlock Text="MODEL" Classes="Label"/>

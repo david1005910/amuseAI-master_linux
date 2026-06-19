@@ -36,6 +36,24 @@ namespace Amuse.UI.Linux.Views
                 vm.SetInputImage(files[0].Path.LocalPath);
         }
 
+        private async void OnPastePathClick(object sender, RoutedEventArgs e)
+        {
+            var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+            if (clipboard == null) return;
+            var text = await clipboard.GetTextAsync();
+            if (!string.IsNullOrEmpty(text) && DataContext is ImageInpaintViewModel vm)
+                vm.SetInputImage(text.Trim());
+        }
+
+        private async void OnPasteMaskPathClick(object sender, RoutedEventArgs e)
+        {
+            var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+            if (clipboard == null) return;
+            var text = await clipboard.GetTextAsync();
+            if (!string.IsNullOrEmpty(text) && DataContext is ImageInpaintViewModel vm)
+                vm.SetMaskImage(text.Trim());
+        }
+
         private async void OnBrowseMaskImageClick(object sender, RoutedEventArgs e)
         {
             var topLevel = TopLevel.GetTopLevel(this);

@@ -139,8 +139,19 @@
                                 <TextBlock Text="Browse Image…"/>
                             </StackPanel>
                         </Button>
-                        <TextBox Text="{Binding InputImagePath}" Margin="0,4,0,0"
-                                 Watermark="Or enter image path…" FontSize="11"/>
+                        <Grid Margin="0,4,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox Grid.Column="0" Text="{Binding InputImagePath}"
+                                     Watermark="Or enter image path…" FontSize="11"/>
+                            <Button Grid.Column="1" Click="OnPastePathClick"
+                                    Background="Transparent" BorderThickness="0"
+                                    Padding="6,0" ToolTip.Tip="Paste path from clipboard">
+                                <ia:Icon Value="fa-paste" FontSize="11" Foreground="#555555"/>
+                            </Button>
+                        </Grid>
 
                         <!-- Model -->
                         <TextBlock Text="MODEL" Classes="Label"/>
