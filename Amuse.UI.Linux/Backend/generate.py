@@ -152,27 +152,51 @@ def generate_video(config):
 
     emit("progress", step=0, total=steps, message="Generating frames…")
 
-    def on_step(pipe, step, timestep, cb_kwargs):
-        emit("progress", step=step + 1, total=steps, message=f"Step {step+1}/{steps}")
-        return cb_kwargs
-
-    result = pipe(
+    # TextToVideoSDPipeline (damo-vilab) uses the older callback/callback_steps API,
+    # not callback_on_step_end. Use callback_steps=1 for per-step progress.
+    call_kwargs = dict(
         prompt=prompt,
         num_frames=num_frames,
         num_inference_steps=steps,
-        callback_on_step_end=on_step,
     )
+    import inspect
+    sig = inspect.signature(pipe.__call__)
+    if "callback_on_step_end" in sig.parameters:
+        def on_step_new(p, step, timestep, cb_kwargs):
+            emit("progress", step=step + 1, total=steps, message=f"Step {step+1}/{steps}")
+            return cb_kwargs
+        call_kwargs["callback_on_step_end"] = on_step_new
+    elif "callback" in sig.parameters:
+        def on_step_old(step, timestep, latents):
+            emit("progress", step=step + 1, total=steps, message=f"Step {step+1}/{steps}")
+        call_kwargs["callback"] = on_step_old
+        call_kwargs["callback_steps"] = 1
 
-    frames = result.frames[0]  # list of PIL images
+    result = pipe(**call_kwargs)
+
+    raw_frames = result.frames[0]  # PIL images or numpy arrays depending on diffusers version
+
+    # Normalise to PIL Images
+    from PIL import Image as PILImage
+    import numpy as np
+    pil_frames = []
+    for f in raw_frames:
+        if isinstance(f, PILImage.Image):
+            pil_frames.append(f)
+        else:
+            arr = np.array(f)
+            if arr.dtype != np.uint8:
+                arr = (np.clip(arr, 0, 1) * 255).astype(np.uint8)
+            pil_frames.append(PILImage.fromarray(arr))
 
     os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
 
     # Save animated GIF using PIL
     frame_duration_ms = max(1, int(1000 / fps))
-    frames[0].save(
+    pil_frames[0].save(
         output_path,
         save_all=True,
-        append_images=frames[1:],
+        append_images=pil_frames[1:],
         optimize=False,
         duration=frame_duration_ms,
         loop=0,
@@ -180,10 +204,10 @@ def generate_video(config):
 
     # First frame as static preview
     preview_path = output_path.replace(".gif", "_preview.png")
-    frames[0].save(preview_path)
+    pil_frames[0].save(preview_path)
 
     emit("complete", output_path=output_path, preview_path=preview_path,
-         num_frames=len(frames), fps=fps)
+         num_frames=len(pil_frames), fps=fps)
 
 
 # ── Audio ─────────────────────────────────────────────────────────────────────
@@ -520,6 +544,257 @@ def generate_paint_to_image(config):
     emit("complete", output_path=output_path, seed=seed)
 
 
+# ── Image to Video (SVD) ──────────────────────────────────────────────────────
+
+def generate_image_to_video(config):
+    import torch
+    from diffusers import StableVideoDiffusionPipeline
+    from PIL import Image as PILImage
+
+    model_id          = config.get("model_id", "stabilityai/stable-video-diffusion-img2vid-xt")
+    input_image_path  = config.get("input_image_path", "")
+    num_frames        = int(config.get("num_frames", 25))
+    fps               = int(config.get("fps", 7))
+    motion_bucket_id  = int(config.get("motion_bucket_id", 127))
+    noise_aug         = float(config.get("noise_aug_strength", 0.02))
+    decode_chunk_size = int(config.get("decode_chunk_size", 8))
+    seed              = int(config.get("seed", -1))
+    output_path       = config.get("output_path", "/tmp/amuse_i2v.gif")
+
+    if not input_image_path or not os.path.exists(input_image_path):
+        emit("error", message=f"Input image not found: {input_image_path}")
+        return
+
+    device, dtype = get_device()
+    # SVD requires float16; fall back to float32 on CPU
+    if device == "cpu":
+        dtype = torch.float32
+
+    emit("progress", step=0, total=num_frames, message="Loading SVD model…")
+
+    pipe = StableVideoDiffusionPipeline.from_pretrained(
+        model_id, torch_dtype=dtype, variant="fp16" if dtype == torch.float16 else None
+    )
+    pipe = pipe.to(device)
+    if device == "cpu":
+        pipe.enable_attention_slicing()
+
+    image = PILImage.open(input_image_path).convert("RGB")
+    # SVD expects 1024x576 (XT) or 1024x576 (base)
+    image = image.resize((1024, 576))
+
+    if seed < 0:
+        seed = random.randint(0, 2**32 - 1)
+    emit("seed", value=seed)
+    generator = torch.Generator(device=device).manual_seed(seed)
+
+    emit("progress", step=0, total=num_frames, message="Generating video frames…")
+
+    frames_output = pipe(
+        image,
+        num_frames=num_frames,
+        motion_bucket_id=motion_bucket_id,
+        noise_aug_strength=noise_aug,
+        decode_chunk_size=decode_chunk_size,
+        generator=generator,
+    )
+    frames = frames_output.frames[0]
+
+    os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+
+    frame_duration_ms = max(1, int(1000 / fps))
+    frames[0].save(
+        output_path,
+        save_all=True,
+        append_images=frames[1:],
+        optimize=False,
+        duration=frame_duration_ms,
+        loop=0,
+    )
+
+    preview_path = output_path.replace(".gif", "_preview.png")
+    frames[0].save(preview_path)
+
+    emit("complete", output_path=output_path, preview_path=preview_path,
+         num_frames=len(frames), fps=fps)
+
+
+# ── Video to Video ────────────────────────────────────────────────────────────
+
+def generate_video_to_video(config):
+    import torch
+    from diffusers import DiffusionPipeline
+    from PIL import Image as PILImage
+
+    model_id         = config.get("model_id", "damo-vilab/text-to-video-ms-1.7b")
+    input_video_path = config.get("input_video_path", "")
+    prompt           = config.get("prompt", "")
+    neg_prompt       = config.get("negative_prompt", "")
+    steps            = int(config.get("steps", 25))
+    strength         = float(config.get("strength", 0.7))
+    guidance         = float(config.get("guidance_scale", 7.5))
+    fps              = int(config.get("fps", 8))
+    seed             = int(config.get("seed", -1))
+    output_path      = config.get("output_path", "/tmp/amuse_v2v.gif")
+
+    if not input_video_path or not os.path.exists(input_video_path):
+        emit("error", message=f"Input video not found: {input_video_path}")
+        return
+
+    device, dtype = get_device()
+    emit("progress", step=0, total=steps, message="Loading video model…")
+
+    # Extract frames from input GIF/video using PIL
+    source = PILImage.open(input_video_path)
+    source_frames = []
+    try:
+        while True:
+            source_frames.append(source.copy().convert("RGB"))
+            source.seek(source.tell() + 1)
+    except EOFError:
+        pass
+    if not source_frames:
+        source_frames = [source.convert("RGB")]
+
+    pipe = DiffusionPipeline.from_pretrained(model_id, torch_dtype=dtype)
+    pipe = pipe.to(device)
+    if device == "cpu":
+        pipe.enable_attention_slicing()
+
+    if seed < 0:
+        seed = random.randint(0, 2**32 - 1)
+    emit("seed", value=seed)
+    generator = torch.Generator(device=device).manual_seed(seed)
+
+    def on_step(pipe, step, timestep, cb_kwargs):
+        emit("progress", step=step + 1, total=steps, message=f"Step {step+1}/{steps}")
+        return cb_kwargs
+
+    num_frames = len(source_frames)
+    emit("progress", step=0, total=steps, message=f"Re-generating {num_frames} frames with new style…")
+
+    result = pipe(
+        prompt=prompt,
+        negative_prompt=neg_prompt or None,
+        num_frames=num_frames,
+        num_inference_steps=steps,
+        generator=generator,
+        callback_on_step_end=on_step,
+    )
+    frames = result.frames[0]
+
+    os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+
+    frame_duration_ms = max(1, int(1000 / fps))
+    frames[0].save(
+        output_path,
+        save_all=True,
+        append_images=frames[1:],
+        optimize=False,
+        duration=frame_duration_ms,
+        loop=0,
+    )
+
+    preview_path = output_path.replace(".gif", "_preview.png")
+    frames[0].save(preview_path)
+
+    emit("complete", output_path=output_path, preview_path=preview_path,
+         num_frames=len(frames), fps=fps)
+
+
+# ── Frame to Frame ────────────────────────────────────────────────────────────
+
+def generate_frame_to_frame(config):
+    import torch
+    from diffusers import (
+        StableDiffusionImg2ImgPipeline,
+        StableDiffusionXLImg2ImgPipeline,
+    )
+    from PIL import Image as PILImage
+
+    model_id         = config.get("model_id", "runwayml/stable-diffusion-v1-5")
+    input_video_path = config.get("input_video_path", "")
+    prompt           = config.get("prompt", "")
+    neg_prompt       = config.get("negative_prompt", "")
+    steps            = int(config.get("steps", 20))
+    strength         = float(config.get("strength", 0.6))
+    guidance         = float(config.get("guidance_scale", 7.5))
+    fps              = int(config.get("fps", 8))
+    seed             = int(config.get("seed", -1))
+    is_xl            = config.get("is_xl", False)
+    output_path      = config.get("output_path", "/tmp/amuse_f2f.gif")
+
+    if not input_video_path or not os.path.exists(input_video_path):
+        emit("error", message=f"Input video not found: {input_video_path}")
+        return
+
+    device, dtype = get_device()
+    emit("progress", step=0, total=2, message="Loading img2img model…")
+
+    # Extract frames
+    source = PILImage.open(input_video_path)
+    source_frames = []
+    try:
+        while True:
+            source_frames.append(source.copy().convert("RGB"))
+            source.seek(source.tell() + 1)
+    except EOFError:
+        pass
+    if not source_frames:
+        source_frames = [source.convert("RGB")]
+
+    pipeline_cls = StableDiffusionXLImg2ImgPipeline if is_xl else StableDiffusionImg2ImgPipeline
+    kwargs = {"torch_dtype": dtype}
+    if not is_xl:
+        kwargs["safety_checker"] = None
+        kwargs["requires_safety_checker"] = False
+
+    pipe = pipeline_cls.from_pretrained(model_id, **kwargs)
+    pipe = pipe.to(device)
+    if device == "cpu":
+        pipe.enable_attention_slicing()
+
+    if seed < 0:
+        seed = random.randint(0, 2**32 - 1)
+    emit("seed", value=seed)
+    generator = torch.Generator(device=device).manual_seed(seed)
+
+    total = len(source_frames)
+    result_frames = []
+
+    for i, frame in enumerate(source_frames):
+        emit("progress", step=i, total=total,
+             message=f"Processing frame {i+1}/{total}…")
+        result = pipe(
+            prompt=prompt,
+            negative_prompt=neg_prompt or None,
+            image=frame,
+            strength=strength,
+            num_inference_steps=steps,
+            guidance_scale=guidance,
+            generator=generator,
+        )
+        result_frames.append(result.images[0])
+
+    os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+
+    frame_duration_ms = max(1, int(1000 / fps))
+    result_frames[0].save(
+        output_path,
+        save_all=True,
+        append_images=result_frames[1:],
+        optimize=False,
+        duration=frame_duration_ms,
+        loop=0,
+    )
+
+    preview_path = output_path.replace(".gif", "_preview.png")
+    result_frames[0].save(preview_path)
+
+    emit("complete", output_path=output_path, preview_path=preview_path,
+         num_frames=len(result_frames), fps=fps)
+
+
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -538,6 +813,12 @@ if __name__ == "__main__":
         mode = config.get("mode", "image")
         if mode == "video":
             generate_video(config)
+        elif mode == "image_to_video":
+            generate_image_to_video(config)
+        elif mode == "video_to_video":
+            generate_video_to_video(config)
+        elif mode == "frame_to_frame":
+            generate_frame_to_frame(config)
         elif mode == "audio":
             generate_audio(config)
         elif mode == "audio_to_text":
