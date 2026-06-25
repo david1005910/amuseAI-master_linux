@@ -72,12 +72,14 @@ Uses **Avalonia** (not WPF) and **CommunityToolkit.Mvvm** (source-generators-bas
 
 **View hierarchy**: Each pipeline has a matching `*View.axaml` + `*View.axaml.cs` and a `*ViewModel.cs`. ViewModels extend `ObservableObject`; `[ObservableProperty]` generates backing fields; `[RelayCommand]` generates `ICommand` properties.
 
-**Adding a new pipeline view** requires four coordinated changes:
+**Adding a new pipeline view** requires five coordinated changes:
 1. Add the enum value to `View` and map it in `ViewManager.ViewCategoryMap` (`Views/View.cs`)
 2. Create `ViewModels/MyNewViewModel.cs` (extend `ObservableObject`, use `[ObservableProperty]`/`[RelayCommand]`)
 3. Create `Views/MyNewView.axaml` + `MyNewView.axaml.cs` with `DataContext = new MyNewViewModel()`
 4. Add the case to `ViewFactory.Create()` (`Views/ViewFactory.cs`)
 5. Add a handler function in `Backend/generate.py` and wire it in the `if mode ==` dispatch block
+
+**ViewFactory quirk**: `View.TextToMusic` is aliased to `new TextToAudioView()` (shares the same view as `View.TextToAudio`). `View.Home` and `View.Recent` are not in ViewFactory and fall through to `StubView`.
 
 ### Linux Python IPC Protocol
 
@@ -91,7 +93,23 @@ Uses **Avalonia** (not WPF) and **CommunityToolkit.Mvvm** (source-generators-bas
   - `{"type":"error","message":"..."}` — fatal error
   - `{"type":"missing_deps","packages":[...]}` — Python deps absent
 
-The input JSON schema is defined in `Services/GenerationRequest.cs`. All fields are snake_cased when serialized. The `mode` field routes to the correct handler in `generate.py`.
+The input JSON schema is defined in `Services/GenerationRequest.cs`. All fields are snake_cased when serialized. The `mode` field routes to the correct handler in `generate.py`:
+
+| `mode` value | Handler in `generate.py` |
+|---|---|
+| `image` (default) | `generate_image` |
+| `image_to_image` | `generate_image_to_image` |
+| `image_edit` | `generate_image_edit` (InstructPix2Pix) |
+| `inpaint` | `generate_inpaint` |
+| `paint_to_image` | `generate_paint_to_image` |
+| `video` | `generate_video` |
+| `image_to_video` | `generate_image_to_video` (SVD) |
+| `video_to_video` | `generate_video_to_video` |
+| `frame_to_frame` | `generate_frame_to_frame` |
+| `audio` | `generate_audio` |
+| `audio_to_text` | `audio_to_text` (Whisper) |
+
+`PythonDiffusionService` chooses the output file extension by mode: `.png` for image modes, `.gif` for video modes, `.wav` for audio, `.txt` for audio_to_text.
 
 **GPU environment**: `CUDA_VISIBLE_DEVICES`, `HIP_VISIBLE_DEVICES`, and `ROCR_VISIBLE_DEVICES` are all set to `""` (empty string, not `"-1"`) before spawning the Python process. AMD iGPU (Cezanne/Vega) segfaults ROCm 7.2 at tensor init if `-1` is used.
 
@@ -148,6 +166,10 @@ Documented in `Docs/Environments.md`. Amuse creates isolated Python venvs scoped
 - **WPF data binding**: views bind to service properties via `INotifyPropertyChanged`; `ServiceBase` provides `SetProperty`; avoid code-behind logic beyond event wiring.
 - **Pipeline load/reload/update**: `IDiffusionRuntime` distinguishes `LoadAsync` (cold load), `ReloadAsync` (model changed, same env), and `UpdateAsync` (only options changed, no reload needed).
 - **CommunityToolkit.Mvvm source generators** (Linux): `[ObservableProperty]` on a `private` field named `_camelCase` generates the public `PascalCase` property plus `OnXChanged` partial hook. `[RelayCommand]` on a `private` method generates `XCommand`. `[NotifyCanExecuteChangedFor]` wires command re-evaluation.
+
+## Other Projects in This Repo
+
+`Youtube_SubjectSerach/` — a standalone Python/HTML mini-tool for YouTube subject search (unrelated to the main AI generation app). It has its own `server.py` and `index.html`.
 
 ## Supported AI Pipelines
 
